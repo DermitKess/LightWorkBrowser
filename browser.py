@@ -95,11 +95,11 @@ translations = {
 def translate(text, lang):
     return translations.get(lang, translations["ru"]).get(text, text)
 
-
 class HistoryItem(QWidget):
     def __init__(self, title, url, visit_count=None, parent=None):
         super().__init__(parent)
         self.url = url
+        self.parent_window = parent
         lang = self.parent().browser.settings_data.get("language", "ru")
         layout = QVBoxLayout()
         layout.setContentsMargins(5, 5, 5, 5)
@@ -107,18 +107,28 @@ class HistoryItem(QWidget):
 
         title_text = f"({visit_count}) {title}" if visit_count else title
         title_display = title_text[:40] + "..." if len(title_text) > 40 else title_text
-        title_label = QLabel(f'<a href="{url}" style="color: inherit;"><b>{title_display}</b></a>')
-        title_label.setOpenExternalLinks(False)
-        title_label.setStyleSheet("font-family: Manrope; font-size: 13px;")
-        title_label.linkActivated.connect(self.open_url)
-        layout.addWidget(title_label)
+        self.title_label = QLabel(f'<a href="{url}" style="color: inherit;"><b>{title_display}</b></a>')
+        self.title_label.setOpenExternalLinks(False)
+        # Удаляем setStyleSheet, стили будут задаваться через update_style
+        self.title_label.linkActivated.connect(self.open_url)
+        layout.addWidget(self.title_label)
 
         url_text = url[:40] + "..." if len(url) > 40 else url
-        url_label = QLabel(url_text)
-        url_label.setStyleSheet("font-family: Manrope; font-size: 11px;")
-        layout.addWidget(url_label)
+        self.url_label = QLabel(url_text)
+        # Удаляем setStyleSheet, стили будут задаваться через update_style
+        layout.addWidget(self.url_label)
 
         self.setLayout(layout)
+        self.update_style()  # Устанавливаем начальный стиль
+
+    def update_style(self):
+        theme = self.parent_window.browser.settings_data.get("theme", "dark")
+        if theme == "dark":
+            self.title_label.setStyleSheet("font-family: Manrope; font-size: 13px; color: #ffffff;")
+            self.url_label.setStyleSheet("font-family: Manrope; font-size: 11px; color: #ffffff;")
+        else:
+            self.title_label.setStyleSheet("font-family: Manrope; font-size: 13px; color: #000000;")
+            self.url_label.setStyleSheet("font-family: Manrope; font-size: 11px; color: #000000;")
 
     def mouseDoubleClickEvent(self, event):
         print(f"Double click on URL: {self.url}")
@@ -150,7 +160,6 @@ class HistoryItem(QWidget):
             browser.add_tab(self.url if url is None else url)
         else:
             print("Error: could not find browser object")
-
 
 class HistoryWindow(QMainWindow):
     def __init__(self, parent=None):
@@ -254,8 +263,6 @@ class HistoryWindow(QMainWindow):
             QPushButton:hover {background-color: #3c3c3c; border: 1px solid #373737;}
             QListWidget {background-color: #0e0e0e; color: #fff; border: none;}
             HistoryItem {background-color: #0e0e0e; border-bottom: 1px solid #202020;}
-            HistoryItem QLabel {color: #ffffff;} /* Светло-серый цвет для названий сайтов в тёмной теме */
-            HistoryItem QLabel:nth-child(2) {color: #ffffff;} /* Средний серый цвет для путей в тёмной теме */
             """)
         else:
             self.setStyleSheet("""
@@ -281,8 +288,6 @@ class HistoryWindow(QMainWindow):
             QPushButton:hover {background-color: #D1D1D1; border: 1px solid #BBBBBB; box-shadow: 0 2px 4px rgba(0,0,0,0.1);}
             QListWidget {background-color: #F5F5F5; color: #333333; border: none;}
             HistoryItem {background-color: #FFFFFF; border-bottom: 1px solid #E0E0E0; border-radius: 4px;}
-            HistoryItem QLabel {color: #000000;} /* Тёмный цвет для названий сайтов в светлой теме */
-            HistoryItem QLabel:nth-child(2) {color: #000000;} /* Серый цвет для путей в светлой теме */
             """)
 
     def on_category_selected(self, item):
@@ -392,12 +397,12 @@ class HistoryWindow(QMainWindow):
             self.browser.history_windows.remove(self)
         event.accept()
 
-
 class DownloadsItem(QWidget):
     def __init__(self, filename, path, parent=None):
         super().__init__(parent)
         self.filename = filename
         self.path = path if path and os.path.isabs(path) else "Unknown path"
+        self.parent_window = parent
         lang = self.parent().browser.settings_data.get("language", "ru")
         layout = QVBoxLayout()
         layout.setContentsMargins(5, 5, 5, 5)
@@ -405,21 +410,32 @@ class DownloadsItem(QWidget):
 
         self.file_label = QLabel(f'<a href="file:///{self.path}" style="color: inherit;"><b>{filename}</b></a>')
         self.file_label.setOpenExternalLinks(False)
-        self.file_label.setStyleSheet("font-family: Manrope; font-size: 13px;")
+        # Удаляем setStyleSheet, стили будут задаваться через update_style
         self.file_label.linkActivated.connect(self.open_file)
         self.file_label.setContextMenuPolicy(Qt.ContextMenuPolicy.NoContextMenu)
         layout.addWidget(self.file_label)
 
         path_text = self.path[:40] + "..." if len(self.path) > 40 else self.path
-        path_label = QLabel(path_text)
-        path_label.setStyleSheet("font-family: Manrope; font-size: 11px;")
-        layout.addWidget(path_label)
+        self.path_label = QLabel(path_text)
+        # Удаляем setStyleSheet, стили будут задаваться через update_style
+        layout.addWidget(self.path_label)
 
         self.setLayout(layout)
 
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self.show_context_menu)
         self.mousePressEvent = self.open_file_on_click
+
+        self.update_style()  # Устанавливаем начальный стиль
+
+    def update_style(self):
+        theme = self.parent_window.browser.settings_data.get("theme", "dark")
+        if theme == "dark":
+            self.file_label.setStyleSheet("font-family: Manrope; font-size: 13px; color: #ffffff;")
+            self.path_label.setStyleSheet("font-family: Manrope; font-size: 11px; color: #ffffff;")
+        else:
+            self.file_label.setStyleSheet("font-family: Manrope; font-size: 13px; color: #000000;")
+            self.path_label.setStyleSheet("font-family: Manrope; font-size: 11px; color: #000000;")
 
     def open_file(self, path=None):
         path_to_open = self.path if path is None else path.replace("file:///", "")
@@ -461,7 +477,6 @@ class DownloadsItem(QWidget):
                 os.system(f"xdg-open {folder_path}")
         else:
             print(f"Error: folder not found at {folder_path}")
-
 
 class DownloadsWindow(QMainWindow):
     def __init__(self, parent=None):
@@ -566,9 +581,7 @@ class DownloadsWindow(QMainWindow):
             QPushButton {background-color: #2c2c2c; color: #fff; padding: 5px; border-radius: 8px; font-family: Manrope; font-size: 13px; border: none;}
             QPushButton:hover {background-color: #3c3c3c; border: 1px solid #373737;}
             QListWidget {background-color: #0e0e0e; color: #fff; border: none;}
-            DownloadsItem {background-color: #0e0e0e; border-bottom: 1px solid #202020;}
-            DownloadsItem QLabel {color: #ffffff;} /* Светло-серый цвет для названий файлов в тёмной теме */
-            DownloadsItem QLabel:nth-child(2) {color: #ffffff;} /* Средний серый цвет для путей в тёмной теме */
+            DownloadsItem {background-color: #0e0e0e; border-bottom: 1px solid #202020; color: #fff}
             """)
         else:
             self.setStyleSheet("""
@@ -594,8 +607,6 @@ class DownloadsWindow(QMainWindow):
             QPushButton:hover {background-color: #D1D1D1; border: 1px solid #BBBBBB; box-shadow: 0 2px 4px rgba(0,0,0,0.1);}
             QListWidget {background-color: #F5F5F5; color: #333333; border: none;}
             DownloadsItem {background-color: #FFFFFF; border-bottom: 1px solid #E0E0E0; border-radius: 4px;}
-            DownloadsItem QLabel {color: #000000;} /* Тёмный цвет для названий файлов в светлой теме */
-            DownloadsItem QLabel:nth-child(2) {color: #000000;} /* Серый цвет для путей в светлой теме */
             """)
 
     def on_category_selected(self, item):
@@ -613,7 +624,15 @@ class DownloadsWindow(QMainWindow):
                 entry_date_str = entry.get("date", "")
                 if not entry_date_str:
                     continue
-                entry_date = datetime.strptime(entry_date_str, "%Y-%m-%d %H:%M:%S")
+                # Пробуем разобрать дату в двух возможных форматах
+                try:
+                    entry_date = datetime.strptime(entry_date_str, "%Y-%m-%d %H:%M:%S")
+                except ValueError:
+                    try:
+                        entry_date = datetime.strptime(entry_date_str, "%a %b %d %H:%M:%S %Y")
+                    except ValueError as e:
+                        print(f"Невозможно разобрать дату: {entry_date_str}, ошибка: {e}")
+                        continue
 
                 if category == translate("Today", lang):
                     if entry_date.date() == current_date.date():
@@ -668,6 +687,7 @@ class DownloadsWindow(QMainWindow):
                 path = entry.get("path", "Unknown path")
                 item = DownloadsItem(entry["filename"], path, self)
                 self.downloads_layout.addWidget(item)
+                item.update_style()  # Обновляем стиль каждого элемента
             except Exception as e:
                 print(f"Ошибка при добавлении элемента загрузок: {e}")
 
@@ -691,7 +711,6 @@ class DownloadsWindow(QMainWindow):
         if self.browser and self in getattr(self.browser, 'download_windows', []):
             self.browser.download_windows.remove(self)
         event.accept()
-
 
 class SettingsWindow(QMainWindow):
     def __init__(self, parent=None):
@@ -773,8 +792,8 @@ class SettingsWindow(QMainWindow):
         self.browser.settings_data["language"] = self.lang_combo.currentData()
         self.browser.settings_data["theme"] = self.theme_combo.currentData()
         self.browser.save_data()
-        self.browser.apply_theme()  # Обновляем тему
-        self.update_language()  # Обновляем язык во всех окнах
+        self.browser.apply_theme()
+        self.update_language()
         self.close()
 
     def update_language(self):
@@ -800,38 +819,81 @@ class SettingsWindow(QMainWindow):
         if index != -1:
             self.theme_combo.setCurrentIndex(index)
 
-
 class BrowserTab(QWidget):
-    def __init__(self, parent_browser):
+    def __init__(self, parent_browser, url=None):
         super().__init__()
         self.parent_browser = parent_browser
         self.setLayout(QVBoxLayout())
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().setSpacing(0)
-        self.browser = QWebEngineView()
-        self.url_bar = QLineEdit()
-        self.url_bar.setPlaceholderText("Enter URL or search...")
-        self.url_bar.returnPressed.connect(self.navigate_to_url)
-        self.toolbar = QToolBar()
-        self.toolbar2 = QToolBar()
-        self.menu_button = None
-        self.left_actions = []
-        self.add_left_buttons()
-        self.add_right_buttons()
-        nav_layout = QHBoxLayout()
-        nav_layout.setContentsMargins(0, 0, 0, 0)
-        nav_layout.setSpacing(0)
-        nav_layout.addWidget(self.toolbar)
-        nav_layout.addWidget(self.url_bar)
-        nav_layout.addWidget(self.toolbar2)
-        self.layout().addLayout(nav_layout)
-        self.layout().addWidget(self.browser)
-        self.browser.titleChanged.connect(self.update_tab_title)
-        self.browser.iconChanged.connect(self.update_tab_icon)
-        self.browser.urlChanged.connect(lambda url: self.url_bar.setText(url.toString()))
-        self.browser.page().profile().downloadRequested.connect(self.handle_download)
-        self.browser.loadFinished.connect(self.update_history)
-        self.update_theme()
+        try:
+            self.browser = QWebEngineView()
+            self.url_bar = QLineEdit()
+            self.url_bar.setPlaceholderText("Enter URL or search...")
+            self.url_bar.returnPressed.connect(self.navigate_to_url)
+            self.toolbar = QToolBar()
+            self.toolbar2 = QToolBar()
+            self.menu_button = None
+            self.left_actions = []
+            self.add_left_buttons()
+            self.add_right_buttons()
+            nav_layout = QHBoxLayout()
+            nav_layout.setContentsMargins(0, 0, 0, 0)
+            nav_layout.setSpacing(0)
+            nav_layout.addWidget(self.toolbar)
+            nav_layout.addWidget(self.url_bar)
+            nav_layout.addWidget(self.toolbar2)
+            self.layout().addLayout(nav_layout)
+            self.layout().addWidget(self.browser)
+
+            # Подключаем сигналы
+            self.browser.titleChanged.connect(self.update_tab_title)
+            self.browser.iconChanged.connect(self.update_tab_icon)
+            self.browser.urlChanged.connect(self.update_url_bar)
+            self.browser.loadFinished.connect(self.on_load_finished)
+            self.browser.page().profile().downloadRequested.connect(self.handle_download)
+            self.browser.loadFinished.connect(self.update_history)
+            self.update_theme()
+
+            # Загружаем URL, если он передан
+            if url:
+                validated_url = self.validate_url(url)
+                print(f"Loading URL in BrowserTab: {validated_url}")  # Отладка
+                self.url_bar.setText(validated_url)  # Устанавливаем URL в адресную строку
+                self.browser.setUrl(QUrl.fromUserInput(validated_url))  # Используем QUrl.fromUserInput для надёжности
+
+            print("BrowserTab initialized successfully")
+        except Exception as e:
+            print(f"Error initializing BrowserTab: {e}")
+            import traceback
+            traceback.print_exc()
+
+    def validate_url(self, url):
+        """Проверяет и корректирует URL, чтобы он был валидным."""
+        url = str(url).strip()
+        if not url:
+            print("URL is empty, using default homepage")
+            return "http://www.google.com"  # Если URL пустой, возвращаем домашнюю страницу
+        if not url.startswith(("http://", "https://")):
+            print(f"Adding http prefix to URL: {url}")
+            url = "http://" + url
+        return url
+
+    def update_url_bar(self, qurl):
+        """Обновляет адресную строку при изменении URL."""
+        url = qurl.toString()
+        print(f"URL changed to: {url}")  # Отладка
+        if url != "about:blank":
+            self.url_bar.setText(url)
+        else:
+            print("URL is about:blank, not updating URL bar")
+
+    def on_load_finished(self, ok):
+        """Обрабатывает завершение загрузки страницы."""
+        if ok:
+            print(f"Page loaded successfully: {self.browser.url().toString()}")
+        else:
+            print(f"Failed to load page: {self.browser.url().toString()}")
 
     def add_left_buttons(self):
         self.toolbar.clear()
@@ -956,13 +1018,23 @@ class BrowserTab(QWidget):
 
     def navigate_to_url(self):
         url = self.url_bar.text().strip()
+        print(f"Navigating to URL: {url}")  # Отладка
         if not url:
+            print("URL is empty, navigation aborted")
             return
         if '.' not in url:
             url = f"https://www.google.com/search?q={url}"
-        elif not url.startswith("http"):
+            print(f"Converted to search URL: {url}")
+        elif not url.startswith(("http://", "https://")):
             url = "http://" + url
-        self.browser.setUrl(QUrl(url))
+            print(f"Added http prefix: {url}")
+        try:
+            self.url_bar.setText(url)  # Обновляем адресную строку перед загрузкой
+            self.browser.setUrl(QUrl.fromUserInput(url))
+        except Exception as e:
+            print(f"Error setting URL: {e}")
+            import traceback
+            traceback.print_exc()
 
     def update_history(self, ok):
         if ok:
@@ -998,7 +1070,6 @@ class BrowserTab(QWidget):
                 print("Download canceled")
         except Exception as e:
             print(f"Ошибка загрузки: {e}")
-
 
 class Browser(QMainWindow):
     def __init__(self):
@@ -1162,12 +1233,19 @@ class Browser(QMainWindow):
 
     def add_tab(self, url=None):
         lang = self.settings_data.get("language", "ru")
+        url = self.settings_data.get("homepage", "http://www.google.com")
         if url is None:
             url = self.settings_data.get("homepage", "http://www.google.com")
-        tab = BrowserTab(self)
-        tab.browser.setUrl(QUrl(url))
-        idx = self.tabs.add_tab(tab, translate("New Tab", lang))
-        self.tabs.setCurrentIndex(idx)
+        print(f"Adding tab with URL: {url}")  # Отладка
+        try:
+            tab = BrowserTab(self, url)  # Передаём URL в конструктор BrowserTab
+            idx = self.tabs.add_tab(tab, translate("New Tab", lang))
+            self.tabs.setCurrentIndex(idx)
+            print(f"New tab added at index {idx} with URL: {url}")
+        except Exception as e:
+            print(f"Error adding new tab: {e}")
+            import traceback
+            traceback.print_exc()
 
     def add_special_tab(self, title, tab_type):
         lang = self.settings_data.get("language", "ru")
@@ -1200,6 +1278,17 @@ class Browser(QMainWindow):
         QTabBar::tab {background-color:#0e0e0e; color:#fff; padding:5px; border-radius:8px; margin:4px;}
         QTabBar::tab:selected {background-color:#2c2c2c; border-radius:8px;}
         QTabBar::tab:hover {background-color:#1e1e1e; border:0 solid #373737;}
+        QTabBar::close-button {
+            image: url('assets/icons_dark_theme/close.png');
+            width: 16px; height: 16px;
+            background-color: transparent;
+            border: none;
+        }
+        QTabBar::close-button:hover {
+            image: url('assets/icons_dark_theme/close.png');
+            background-color: #3c3c3c;
+            border-radius: 4px;
+        }
         QToolTip {background-color:#212121; color:#fff; font-size:13px; border:none; border-radius:8px; padding:2px; font-family:Manrope;}
         """)
         self.theme_icon_folder = "assets/icons_dark_theme"
@@ -1212,6 +1301,17 @@ class Browser(QMainWindow):
         QTabBar::tab {background-color:#FFFFFF; color:#333333; padding:5px; border-radius:8px; margin:4px; border: 1px solid #CCCCCC; box-shadow: 0 1px 3px rgba(0,0,0,0.1);}
         QTabBar::tab:selected {background-color:#E0E0E0; border-radius:8px; border: 1px solid #CCCCCC;}
         QTabBar::tab:hover {background-color:#E8E8E8; border:1px solid #BBBBBB;}
+        QTabBar::close-button {
+            image: url('assets/icons_light_theme/close.png');
+            width: 16px; height: 16px;
+            background-color: transparent;
+            border: none;
+        }
+        QTabBar::close-button:hover {
+            image: url('assets/icons_light_theme/close.png');
+            background-color: #D1D1D1;
+            border-radius: 4px;
+        }
         QToolTip {background-color:#FFFFFF; color:#333333; font-size:13px; border: 1px solid #CCCCCC; border-radius:8px; padding:2px; font-family:Manrope;}
         """)
         self.theme_icon_folder = "assets/icons_light_theme"
